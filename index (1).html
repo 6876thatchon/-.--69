@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คำนวณเวลาปรุงไก่ | Chicken Cooking Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efeb;--card:#fff;--ink:#2a1d17;--mut:#7a665b;--line:#e3d8d0;--fire:#e4572e;--fire2:#b83a16;--ok:#2e7d4f}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1b1411;--card:#271c17;--ink:#f6e9e0;--mut:#b49c8e;--line:#3d2d25;--fire:#ff7a45;--fire2:#ffa27a;--ok:#6fcf97}}
+:root[data-theme=dark]{--bg:#1b1411;--card:#271c17;--ink:#f6e9e0;--mut:#b49c8e;--line:#3d2d25;--fire:#ff7a45;--fire2:#ffa27a;--ok:#6fcf97}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans Thai",system-ui,sans-serif}
+.wrap{max-width:680px;margin:0 auto;padding:16px 16px 48px}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-size:1.5rem;font-weight:800;margin:12px 0 4px}
+.sub{color:var(--mut);margin:0 0 16px}
+.tools button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:inherit;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.grid{grid-template-columns:1fr}}
+label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+select,input{width:100%;padding:12px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.row{display:flex;gap:8px}.row select{width:90px}
+button.go{width:100%;margin-top:16px;padding:16px;font:inherit;font-size:1.1rem;font-weight:800;color:#fff;background:var(--fire2);border:0;border-radius:12px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--fire);outline-offset:2px}
+#res{display:none}
+.bar{height:12px;background:var(--bg);border-radius:99px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;width:0;background:var(--fire);transition:width .4s}
+.bt-btns{display:flex;gap:8px;margin:10px 0}.bt-btns button{flex:1;padding:12px;font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.big{font-size:2.6rem;font-weight:800;line-height:1.1;color:var(--fire)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.facts div{background:var(--bg);border-radius:10px;padding:10px}
+.facts b{display:block;font-size:.8rem;color:var(--mut);font-weight:600}
+.timer{font-size:2rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin:8px 0}
+.btns{display:flex;gap:8px}.btns button{flex:1;padding:12px;font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.warn{border-left:4px solid var(--fire);padding-left:12px;color:var(--mut);font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+ul{padding-left:20px;margin:6px 0}
+h2{font-size:1.1rem;margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1 id="t_title"></h1>
+  <div class="tools"><button id="lang" aria-label="language">EN</button> <button id="theme" aria-label="theme">🌓</button></div>
+</header>
+<p class="sub" id="t_sub"></p>
+
+<div class="card">
+  <div class="grid">
+    <div><label id="l_part" for="part"></label><select id="part"></select></div>
+    <div><label id="l_bone" for="bone"></label><select id="bone"></select></div>
+    <div><label id="l_wt" for="wt"></label><div class="row"><input id="wt" type="number" min="1" step="any" value="200" inputmode="decimal"><select id="unit"><option value="g">g</option><option value="kg">kg</option></select></div></div>
+    <div><label id="l_th" for="th"></label><input id="th" type="number" min="0.5" step="0.1" inputmode="decimal" placeholder="2.5"></div>
+    <div><label id="l_method" for="method"></label><select id="method"></select></div>
+    <div><label id="l_heat" for="heat"></label><select id="heat"></select></div>
+    <div><label id="l_temp" for="temp"></label><input id="temp" type="number" min="100" max="300" inputmode="numeric" placeholder="180"></div>
+    <div><label id="l_start" for="start"></label><select id="start"></select></div>
+  </div>
+  <button class="go" id="calc"></button>
+</div>
+
+<div class="card" id="res">
+  <div id="r_lab" style="color:var(--mut)"></div>
+  <div class="big" id="r_time"></div>
+  <div class="facts">
+    <div><b id="f1"></b><span id="v1"></span></div>
+    <div><b id="f2"></b><span id="v2"></span></div>
+    <div><b id="f3"></b><span id="v3"></span></div>
+    <div><b id="f4"></b><span id="v4"></span></div>
+  </div>
+  <div class="timer" id="clock">00:00</div>
+  <div class="btns"><button id="start_t"></button><button id="stop_t"></button></div>
+  <p id="r_tip" style="margin:8px 0"></p>
+  <p class="warn" id="r_note"></p>
+</div>
+
+<div class="card">
+  <h2 id="h_bt"></h2>
+  <p class="warn" id="bt_info" style="margin-top:0"></p>
+  <div class="bt-btns"><button id="bt_connect"></button><button id="bt_disc"></button></div>
+  <div class="grid">
+    <div><label id="l_probe" for="probe"></label><input id="probe" type="number" step="0.1" inputmode="decimal" placeholder="68.5"></div>
+    <div><label id="l_target" for="bt_target"></label><input id="bt_target" type="number" value="74" step="1" inputmode="numeric"></div>
+  </div>
+  <div class="timer" id="bt_val">--</div>
+  <div class="bar"><i id="bt_bar"></i></div>
+  <div id="bt_eta" style="text-align:center"></div>
+  <div id="bt_stat" style="text-align:center;color:var(--mut)" aria-live="polite"></div>
+</div>
+<div class="card"><h2 id="h_ref"></h2><table id="ref"></table></div>
+<div class="card"><h2 id="h_chk"></h2><ul id="chk"></ul></div>
+<div class="card"><h2 id="h_safe"></h2><ul id="safe"></ul></div>
+</div>
+
+<script>
+/* ===== ตารางค่าพื้นฐาน (แก้ตัวเลขได้ที่นี่) =====
+   base = เวลา (นาที) ของชิ้นขนาดอ้างอิง ย่างด้วยความร้อนกลาง ~190°C
+   w = น้ำหนักอ้างอิง (กรัม), th = ความหนาอ้างอิง (ซม.)
+   core = อุณหภูมิแกนกลางที่แนะนำ (°C), bone = มีกระดูกเป็นค่าเริ่มต้นไหม */
+const PARTS={
+  drum:  {base:35,w:150,th:3.5,core:'74–85',bone:true, rest:5},
+  thigh: {base:32,w:170,th:3.0,core:'74–85',bone:true, rest:5},
+  breast:{base:24,w:220,th:3.0,core:'74',   bone:false,rest:7},
+  wing:  {base:20,w:90, th:2.0,core:'74–82',bone:true, rest:3},
+  tender:{base:12,w:60, th:1.8,core:'74',   bone:false,rest:3},
+  whole: {base:80,w:1500,th:9, core:'74 (ที่ต้นขา)',bone:true,rest:15}
+};
+/* ตัวคูณตามวิธีย่าง / ความร้อน / อุณหภูมิเริ่มต้น */
+/* วิธีปรุง: f = ตัวคูณเวลา (เทียบกับย่างไฟกลาง), heat = ใช้ระดับความร้อนไหม, flip = every/once/none */
+const METHODS={
+  charcoal:{f:1.0,heat:true,flip:'every'},
+  gas:{f:1.0,heat:true,flip:'every'},
+  oven:{f:1.15,heat:true,flip:'once'},
+  air:{f:0.75,heat:true,flip:'once'},
+  panfry:{f:0.8,heat:true,flip:'every'},
+  deepfry:{f:0.45,heat:false,flip:'once'},
+  boil:{f:0.65,heat:false,flip:'none'},
+  steam:{f:0.8,heat:false,flip:'none'},
+  stew:{f:1.6,heat:false,flip:'none'},
+  pressure:{f:0.4,heat:false,flip:'none'}
+};
+const HEATS={low:1.4,mid:1.0,high:0.75};
+const STARTS={room:0.9,chilled:1.0,cold:1.15};
+
+const L={
+th:{
+ title:'🍗 คำนวณเวลาปรุงไก่',sub:'เลือกวิธีปรุง ใส่ข้อมูล แล้วดูเวลาโดยประมาณให้ไก่สุกพอดี',
+ part:'ส่วนของไก่',bone:'กระดูก',wt:'น้ำหนัก (ต่อชิ้น)',th:'ความหนาเนื้อ (ซม.) ไม่บังคับ',
+ method:'วิธีปรุง',heat:'ระดับความร้อน (เฉพาะย่าง/อบ/ผัด)',temp:'หรือกรอกอุณหภูมิ °C (ไม่บังคับ)',start:'อุณหภูมิไก่ก่อนปรุง',
+ parts:{drum:'น่อง',thigh:'สะโพก',breast:'อก',wing:'ปีก',whole:'ไก่ทั้งตัว',tender:'สันใน'},
+ bones:{auto:'ตามปกติของส่วนนั้น',yes:'มีกระดูก',no:'ไม่มีกระดูก'},
+ methods:{charcoal:'ย่าง: เตาถ่าน',gas:'ย่าง: เตาแก๊ส',oven:'อบ: เตาอบ',air:'หม้อทอดไร้น้ำมัน',panfry:'ทอดกระทะ (น้ำมันน้อย)',deepfry:'ทอดน้ำมันท่วม',boil:'ต้ม',steam:'นึ่ง',stew:'ตุ๋น/เคี่ยว',pressure:'หม้อความดัน'},
+ tips:{charcoal:'ย่างไฟอ้อม ๆ อย่าให้ไหม้นอกดิบใน ทาซอสช่วงท้าย',gas:'ย่างไฟอ้อม ๆ อย่าให้ไหม้นอกดิบใน ทาซอสช่วงท้าย',oven:'อุ่นเตาอบที่ 190–200°C ก่อนใส่ไก่',air:'อุ่นหม้อ 3–5 นาที และอย่าวางไก่ซ้อนกัน',panfry:'ใช้ไฟกลาง ปิดฝาครึ่งหนึ่งให้ด้านในสุก ทอดจนผิวเหลือง',deepfry:'น้ำมันร้อน 170–175°C ซับไก่ให้แห้ง ไม่ใส่แน่นกระทะ ระวังน้ำมันกระเด็น',boil:'ใส่ไก่ตอนน้ำเดือด แล้วลดไฟเป็นเดือดเบา ๆ ให้ไก่จมน้ำ เนื้อจะนุ่มไม่แตก',steam:'รอน้ำเดือดจัดก่อนวางไก่ ปิดฝาสนิท อย่าให้ไก่แช่น้ำ',stew:'ตุ๋นไฟอ่อนในน้ำซุปหรือซอส ปิดฝา เนื้อจะนุ่มเปื่อยกว่าวิธีอื่น',pressure:'นับเวลาหลังหม้อขึ้นแรงดันเต็มที่ (ยังไม่รวมเวลาอุ่นหม้อและปล่อยแรงดัน)',wholeFry:'ไก่ทั้งตัวไม่แนะนำให้ทอดน้ำมันท่วมที่บ้าน เสี่ยงน้ำมันลวก ควรเลือกวิธีอื่น'},
+ heats:{low:'อ่อน',mid:'กลาง',high:'แรง'},
+ starts:{room:'อุณหภูมิห้อง',chilled:'แช่เย็น',cold:'เย็นจัด (ละลายใหม่)'},
+ calc:'คำนวณเวลา',lab:'เวลาปรุงโดยประมาณ',min:'นาที',
+ f1:'การพลิกไก่',f2:'อุณหภูมิแกนกลาง',f3:'พักเนื้อหลังย่าง',f4:'เวลารวมโดยประมาณ',
+ flipOnce:'พลิกครั้งเดียวตอนครึ่งทาง',flipNone:'ไม่ต้องพลิก',every:'พลิกทุก',
+ st:'▶ ตั้งเวลานับถอยหลัง',sp:'■ หยุด',
+ note:'นี่คือเวลาโดยประมาณ เตา หม้อ และความหนาของเนื้อต่างกันได้ ให้ใช้เทอร์โมมิเตอร์วัดที่ส่วนหนาที่สุดเสมอ (ไม่โดนกระดูก)',
+ done:'ครบเวลาแล้ว! วัดอุณหภูมิแกนกลางก่อนยกออก',
+ href:'อุณหภูมิแกนกลางตามส่วนของไก่',hp:'ส่วน',hc:'อุณหภูมิ (°C)',
+ hchk:'ไก่สุกหรือยัง?',
+ chk:['น้ำเนื้อที่ไหลออกมาใส ไม่เป็นสีชมพูหรือแดง','เนื้อตรงกลางเป็นสีขาว (อก) หรือน้ำตาลอ่อน (น่อง/สะโพก) ไม่ใส','ใช้เทอร์โมมิเตอร์เสียบส่วนที่หนาที่สุด อย่าให้โดนกระดูก','ถึง 74°C ขึ้นไปจึงปลอดภัย'],
+ hsafe:'ความปลอดภัยอาหาร',
+ safe:['ล้างมือหลังจับไก่ดิบทุกครั้ง','แยกเขียงและมีดสำหรับไก่ดิบ','อย่าล้างไก่ดิบใต้ก๊อก น้ำกระเด็นทำให้เชื้อกระจาย','ห้ามกินไก่ดิบหรือไม่สุก เก็บไก่ที่ย่างแล้วเข้าตู้เย็นภายใน 2 ชั่วโมง'],
+ bt:{h:'🌡️ เชื่อมต่อเทอร์โมมิเตอร์',
+  info:'เชื่อมต่อเทอร์โมมิเตอร์บลูทูธที่ใช้มาตรฐาน Health Thermometer หรือ Environmental Sensing ได้โดยตรง (ใช้ได้บน Chrome/Edge ของ Android และคอมพิวเตอร์ ไม่รองรับ Safari บน iPhone) แบรนด์ที่ใช้โปรโตคอลของตัวเอง เช่น MEATER หรือ iGrill ยังเชื่อมตรงไม่ได้ ให้ดูค่าในแอปของแบรนด์แล้วกรอกในช่องด้านล่างแทน',
+  connect:'🔗 เชื่อมต่อบลูทูธ',disc:'ตัดการเชื่อมต่อ',probe:'หรือกรอกอุณหภูมิที่อ่านได้ (°C)',target:'อุณหภูมิเป้าหมาย (°C)',
+  connecting:'กำลังเชื่อมต่อ...',connected:'เชื่อมต่อกับ {n} แล้ว',unsupported:'เบราว์เซอร์นี้ไม่รองรับ Web Bluetooth ให้กรอกค่าเองแทน',
+  fail:'เชื่อมต่อไม่สำเร็จ: {n}',nosvc:'อุปกรณ์นี้ไม่มีบริการวัดอุณหภูมิแบบมาตรฐาน ให้กรอกค่าเองแทน',lost:'การเชื่อมต่อหลุด',
+  reached:'ถึงอุณหภูมิเป้าหมายแล้ว! ตรวจดูก่อนยกออก',eta:'คาดว่าอีกประมาณ {m} นาที'},
+ err:'กรุณากรอกน้ำหนักให้ถูกต้อง'
+},
+en:{
+ title:'🍗 Chicken Cooking Timer',sub:'Pick a method and enter your chicken details for an estimated cooking time.',
+ part:'Cut',bone:'Bone',wt:'Weight (per piece)',th:'Thickness (cm), optional',
+ method:'Cooking method',heat:'Heat level (grill/oven/pan only)',temp:'Or enter temperature °C (optional)',start:'Chicken starting temperature',
+ parts:{drum:'Drumstick',thigh:'Thigh',breast:'Breast',wing:'Wing',whole:'Whole chicken',tender:'Tenderloin'},
+ bones:{auto:'Default for this cut',yes:'Bone-in',no:'Boneless'},
+ methods:{charcoal:'Grill: charcoal',gas:'Grill: gas',oven:'Oven roast',air:'Air fryer',panfry:'Pan fry (shallow)',deepfry:'Deep fry',boil:'Boil',steam:'Steam',stew:'Stew / braise',pressure:'Pressure cooker'},
+ tips:{charcoal:'Use indirect heat so the outside does not burn before the inside cooks. Add sauce near the end.',gas:'Use indirect heat so the outside does not burn before the inside cooks. Add sauce near the end.',oven:'Preheat the oven to 190–200°C before adding the chicken.',air:'Preheat 3–5 minutes and do not stack the pieces.',panfry:'Medium heat, lid half on so the inside cooks, until golden.',deepfry:'Oil at 170–175°C. Pat chicken dry, do not overcrowd, and watch for splatter.',boil:'Add chicken to boiling water, then lower to a gentle simmer with the chicken submerged.',steam:'Wait for a rolling boil before placing the chicken. Cover tightly and keep it above the water.',stew:'Simmer gently in broth or sauce with the lid on for very tender meat.',pressure:'Time starts once full pressure is reached (warm-up and release not included).',wholeFry:'Deep frying a whole chicken at home is not recommended (burn risk). Choose another method.'},
+ heats:{low:'Low',mid:'Medium',high:'High'},
+ starts:{room:'Room temperature',chilled:'Refrigerated',cold:'Very cold (just thawed)'},
+ calc:'Calculate',lab:'Estimated cooking time',min:'min',
+ f1:'Flipping',f2:'Safe core temp',f3:'Rest after cooking',f4:'Total cooking time',
+ flipOnce:'Flip once at halfway',flipNone:'No flipping needed',every:'Flip every',
+ st:'▶ Start countdown',sp:'■ Stop',
+ note:'This is an estimate. Equipment and thickness vary, so always confirm with a thermometer at the thickest part (not touching bone).',
+ done:'Time is up! Check the core temperature before removing.',
+ href:'Core temperature by cut',hp:'Cut',hc:'Temp (°C)',
+ hchk:'Is it cooked?',
+ chk:['Juices run clear, not pink or red','Center is white (breast) or light brown (dark meat), not translucent','Insert a thermometer in the thickest part, away from bone','74°C (165°F) or higher is safe'],
+ hsafe:'Food safety',
+ safe:['Wash hands after handling raw chicken','Use a separate board and knife for raw chicken','Do not rinse raw chicken; splashes spread germs','Never eat raw or undercooked chicken; refrigerate leftovers within 2 hours'],
+ bt:{h:'🌡️ Connect a thermometer',
+  info:'Connect Bluetooth thermometers that use the standard Health Thermometer or Environmental Sensing profile (works in Chrome/Edge on Android and desktop; not Safari on iPhone). Brands with their own protocol, such as MEATER or iGrill, cannot connect directly. Read the value in the brand app and type it below instead.',
+  connect:'🔗 Connect Bluetooth',disc:'Disconnect',probe:'Or type the temperature you read (°C)',target:'Target temperature (°C)',
+  connecting:'Connecting...',connected:'Connected to {n}',unsupported:'This browser does not support Web Bluetooth. Type the value instead.',
+  fail:'Could not connect: {n}',nosvc:'This device has no standard temperature service. Type the value instead.',lost:'Connection lost',
+  reached:'Target temperature reached! Check before removing.',eta:'About {m} min left'},
+ err:'Please enter a valid weight.'
+}};
+
+let lang='th',tick=null;
+const $=id=>document.getElementById(id);
+
+function fillSelect(id,keys,labels){const el=$(id),v=el.value;el.innerHTML=keys.map(k=>`<option value="${k}">${labels[k]}</option>`).join('');if(v&&keys.includes(v))el.value=v}
+
+function render(){
+  const t=L[lang];document.documentElement.lang=lang;
+  $('t_title').textContent=t.title;$('t_sub').textContent=t.sub;
+  ['part','bone','wt','th','method','heat','temp','start'].forEach(k=>$('l_'+k).textContent=t[k]);
+  fillSelect('part',Object.keys(PARTS),t.parts);
+  fillSelect('bone',['auto','yes','no'],t.bones);
+  fillSelect('method',Object.keys(METHODS),t.methods);
+  fillSelect('heat',Object.keys(HEATS),t.heats);
+  fillSelect('start',Object.keys(STARTS),t.starts);
+  $('calc').textContent=t.calc;$('lang').textContent=lang==='th'?'EN':'TH';
+  $('r_lab').textContent=t.lab;$('f1').textContent=t.f1;$('f2').textContent=t.f2;$('f3').textContent=t.f3;$('f4').textContent=t.f4;
+  $('start_t').textContent=t.st;$('stop_t').textContent=t.sp;$('r_note').textContent=t.note;
+  const b=t.bt;$('h_bt').textContent=b.h;$('bt_info').textContent=b.info;$('bt_connect').textContent=b.connect;$('bt_disc').textContent=b.disc;$('l_probe').textContent=b.probe;$('l_target').textContent=b.target;showStat();
+  $('h_ref').textContent=t.href;$('h_chk').textContent=t.hchk;$('h_safe').textContent=t.hsafe;
+  $('ref').innerHTML=`<tr><th>${t.hp}</th><th>${t.hc}</th></tr>`+Object.keys(PARTS).map(k=>`<tr><td>${t.parts[k]}</td><td>${PARTS[k].core}</td></tr>`).join('');
+  $('chk').innerHTML=t.chk.map(x=>`<li>${x}</li>`).join('');
+  $('safe').innerHTML=t.safe.map(x=>`<li>${x}</li>`).join('');
+  if($('res').style.display==='block')calc();
+}
+
+function calc(){
+  const t=L[lang],p=PARTS[$('part').value];
+  let w=parseFloat($('wt').value);
+  if(!(w>0)){alert(t.err);return}
+  if($('unit').value==='kg')w*=1000;
+  const th=parseFloat($('th').value);
+  /* ปรับตามความหนา (ถ้ามี) ไม่เช่นนั้นปรับตามน้ำหนัก */
+  const size=th>0?Math.pow(th/p.th,1.2):Math.pow(w/p.w,0.45);
+  /* กระดูก: มีกระดูกช้ากว่าเล็กน้อย */
+  const b=$('bone').value,hasBone=b==='auto'?p.bone:b==='yes';
+  const boneF=hasBone===p.bone?1:(hasBone?1.15:0.87);
+  /* ความร้อน: ถ้ากรอก °C ใช้ค่านั้นแทน */
+  const tc=parseFloat($('temp').value);
+  const M=METHODS[$('method').value];
+  const heatF=!M.heat?1:(tc>0?Math.min(2,Math.max(0.5,Math.pow(190/tc,1.1))):HEATS[$('heat').value]);
+  const total=p.base*size*boneF*heatF*M.f*STARTS[$('start').value];
+  const lo=Math.round(total*0.9),hi=Math.round(total*1.1),mid=Math.round(total);
+  $('r_time').textContent=`${lo}–${hi} ${t.min}`;
+  const m=$('method').value;
+  const fl=M.flip==='every'&&$('part').value==='whole'?'once':M.flip;
+  const flip=fl==='none'?t.flipNone:fl==='once'?t.flipOnce:`${t.every} ${Math.max(4,Math.round(total/4))} ${t.min}`;
+  $('r_tip').textContent=t.tips[m]+(m==='deepfry'&&$('part').value==='whole'?' ⚠️ '+t.tips.wholeFry:'');
+  $('v1').textContent=flip;$('v2').textContent='74°C (165°F)';
+  $('v3').textContent=`${p.rest}–${p.rest+5} ${t.min}`;$('v4').textContent=`~${mid} ${t.min}`;
+  $('res').style.display='block';$('res').dataset.sec=mid*60;
+  stop();show(mid*60);
+}
+function show(s){$('clock').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function stop(){clearInterval(tick);tick=null;show(+$('res').dataset.sec||0)}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)();let n=0;const f=()=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();o.stop(c.currentTime+.25);if(++n<4)setTimeout(f,450)};f()}catch(e){}}
+function start(){
+  stop();let s=+$('res').dataset.sec;if(!s)return;const end=Date.now()+s*1000;
+  tick=setInterval(()=>{const r=Math.max(0,Math.round((end-Date.now())/1000));show(r);
+    if(r<=0){clearInterval(tick);tick=null;beep();if(navigator.vibrate)navigator.vibrate([300,150,300]);alert(L[lang].done)}},500);
+}
+
+/* ===== เทอร์โมมิเตอร์บลูทูธ (Web Bluetooth) ===== */
+let dev=null,poll=null,readings=[],alerted=false,statKey='',statArg='';
+const BT=()=>L[lang].bt;
+function showStat(){$('bt_stat').textContent=statKey?BT()[statKey].replace('{n}',statArg):''}
+function setStat(k,a=''){statKey=k;statArg=a;showStat()}
+function setTemp(c){
+  if(!isFinite(c))return;
+  const tg=parseFloat($('bt_target').value)||74,now=Date.now();
+  $('bt_val').textContent=c.toFixed(1)+'°C';
+  $('bt_bar').style.width=Math.max(0,Math.min(100,c/tg*100))+'%';
+  readings.push({t:now,c});readings=readings.filter(x=>now-x.t<180000);
+  let eta='';
+  if(readings.length>1){const a=readings[0],span=(now-a.t)/60000;
+    if(span>=0.5){const sl=(c-a.c)/span;if(sl>0.1&&c<tg)eta=BT().eta.replace('{m}',Math.ceil((tg-c)/sl))}}
+  $('bt_eta').textContent=eta;
+  if(c>=tg){if(!alerted){alerted=true;beep();if(navigator.vibrate)navigator.vibrate([300,150,300]);setStat('reached')}}
+  else if(c<tg-2)alerted=false;
+}
+/* IEEE-11073 FLOAT: mantissa 24 บิต + เลขชี้กำลัง 8 บิต */
+function ieee(v,o){let m=v.getUint32(o,true)&0xFFFFFF;if(m>=0x800000)m-=0x1000000;return m*Math.pow(10,v.getInt8(o+3))}
+function onData(e){const v=e.target.value;const f=v.getUint8(0);let c=ieee(v,1);if(f&1)c=(c-32)*5/9;setTemp(c)}
+function onLost(){clearInterval(poll);setStat('lost')}
+async function btConnect(){
+  if(!navigator.bluetooth){setStat('unsupported');return}
+  try{
+    const d=await navigator.bluetooth.requestDevice({filters:[{services:[0x1809]},{services:[0x181A]}]});
+    setStat('connecting');dev=d;d.addEventListener('gattserverdisconnected',onLost);
+    const srv=await d.gatt.connect();let ok=false;
+    try{const sv=await srv.getPrimaryService(0x1809),ch=await sv.getCharacteristic(0x2A1C);
+      ch.addEventListener('characteristicvaluechanged',onData);await ch.startNotifications();ok=true}catch(e){}
+    if(!ok){try{const sv=await srv.getPrimaryService(0x181A),ch=await sv.getCharacteristic(0x2A6E);
+      const rd=async()=>{try{setTemp((await ch.readValue()).getInt16(0,true)/100)}catch(e){}};
+      await rd();poll=setInterval(rd,2000);ok=true}catch(e){}}
+    if(!ok){d.removeEventListener('gattserverdisconnected',onLost);d.gatt.disconnect();setStat('nosvc');return}
+    alerted=false;readings=[];setStat('connected',d.name||'Bluetooth');
+  }catch(e){if(e.name!=='NotFoundError')setStat('fail',e.message)}
+}
+function btDisconnect(){
+  clearInterval(poll);
+  if(dev){dev.removeEventListener('gattserverdisconnected',onLost);if(dev.gatt.connected)dev.gatt.disconnect();dev=null}
+  setStat('');
+}
+$('bt_connect').onclick=btConnect;$('bt_disc').onclick=btDisconnect;
+$('probe').oninput=()=>{const c=parseFloat($('probe').value);if(isFinite(c))setTemp(c)};
+
+$('calc').onclick=calc;$('start_t').onclick=start;$('stop_t').onclick=stop;
+$('lang').onclick=()=>{lang=lang==='th'?'en':'th';render();syncHeat()};
+$('theme').onclick=()=>{const d=document.documentElement,dark=getComputedStyle(d).getPropertyValue('--bg').trim()==='#1b1411';d.dataset.theme=dark?'light':'dark'};
+/* เลือกส่วนไก่แล้วตั้งน้ำหนักเริ่มต้นให้ */
+function syncHeat(){const on=METHODS[$('method').value].heat;['heat','temp'].forEach(i=>{$(i).disabled=!on;$(i).style.opacity=on?1:.4})}
+$('method').onchange=()=>{syncHeat();if($('res').style.display==='block')calc()};
+$('part').onchange=()=>{$('wt').value=PARTS[$('part').value].w;$('unit').value='g'};
+render();syncHeat();$('wt').value=PARTS[$('part').value].w;
+</script>
+</body>
+</html>
