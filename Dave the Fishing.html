@@ -1,0 +1,223 @@
+<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Dave the Fishing</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ac:#ffb703;--pn:rgba(10,40,60,.82);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;background:#0e3b4f;overflow:hidden;font-family:'Prompt',system-ui,sans-serif;color:#fff;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+[hidden]{display:none!important}
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5}
+h1{font-size:clamp(34px,8vw,76px);margin:0 0 20px;color:#fff;text-shadow:0 4px 0 #e76f51,0 8px 18px rgba(0,0,0,.5);letter-spacing:1px;text-align:center}
+.b{font:700 20px 'Prompt',sans-serif;min-width:230px;padding:12px 26px;border:3px solid #1a1a2e;border-radius:16px;background:var(--ac);color:#1a1a2e;cursor:pointer;box-shadow:0 5px 0 #1a1a2e}
+.b:active{transform:translateY(4px);box-shadow:0 1px 0 #1a1a2e}.b:disabled{opacity:.45}
+.b.sm{min-width:80px;padding:8px 14px;font-size:16px;background:#8ecae6}.b.on{background:var(--ac)}
+.pn{background:var(--pn);padding:22px 28px;border-radius:18px;display:flex;flex-direction:column;gap:12px;min-width:270px;align-items:center}
+select,input{font:inherit}
+#hud{position:fixed;left:12px;top:calc(12px + env(safe-area-inset-top,0px));background:var(--pn);padding:10px 14px;border-radius:14px;z-index:3;line-height:1.5;font-size:15px}
+#tut{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--pn);padding:12px 20px;border-radius:14px;z-index:3;max-width:min(92vw,640px);text-align:center;border:2px solid var(--ac)}
+#msg{position:fixed;top:18%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:700;text-shadow:0 3px 0 #1a1a2e;z-index:3;text-align:center;max-width:90vw}
+#fight{position:fixed;right:5%;top:20%;z-index:3;display:flex;gap:18px;background:var(--pn);padding:12px 16px;border-radius:14px;text-align:center;font-size:13px}.col{width:84px}
+.bar{height:min(40vh,260px);width:34px;margin:6px auto 0;border:3px solid #1a1a2e;border-radius:17px;background:#12303f;overflow:hidden;display:flex;align-items:flex-end}
+.bar i{display:block;width:100%;height:0}
+#bag{position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top,0px));background:var(--pn);padding:12px 16px;border-radius:14px;z-index:3;min-width:190px;transform-origin:top right;transform:scale(.2) translateY(-30px) rotate(6deg);opacity:0;pointer-events:none;transition:transform .45s cubic-bezier(.3,1.6,.5,1),opacity .25s}#bag.on{transform:none;opacity:1}
+#mm{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:150px;height:150px;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 3px 0 #1a1a2e;z-index:3;transition:all .35s}
+#mm.big{width:min(72vmin,440px);height:min(72vmin,440px);left:50%;bottom:50%;transform:translate(-50%,50%);border-radius:16px}
+</style></head><body>
+<div id="title" class="scr"><h1>Dave the Fishing</h1><button class="b" id="bstart"></button></div>
+<div id="menu" class="scr" hidden><h1 style="font-size:clamp(28px,6vw,52px)">Dave the Fishing</h1><button class="b" id="bnew"></button><button class="b" id="bcont" disabled></button><button class="b" id="bset"></button><button class="b" id="bquit"></button></div>
+<div id="set" class="scr" hidden><div class="pn"><b id="slang"></b><div><button class="b sm" data-l="0">English</button> <button class="b sm" data-l="1">ไทย</button> <button class="b sm" data-l="2">中文</button></div><b id="svol"></b><input type="range" id="vol" min="0" max="100" value="60"><b id="sgfx"></b><select id="gfx"></select><button class="b" id="bback"></button></div></div>
+<canvas id="mm" width="220" height="220" hidden></canvas><div id="hud" hidden></div><div id="bag"></div><div id="tut" hidden></div><div id="msg"></div>
+<div id="fight" hidden><div class="col"><div id="ft"></div><div class="bar"><i id="tb" style="background:linear-gradient(to top,#ff9f1c,#e63946)"></i></div></div><div class="col"><div id="fp"></div><div class="bar"><i id="pb" style="background:#2a9d8f"></i></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const S={
+start:['START','เริ่ม','开始'],newgame:['New Game','เกมใหม่','新游戏'],cont:['Continue','เล่นต่อ','继续'],settings:['Settings','ตั้งค่า','设置'],quit:['Quit','ออกจากเกม','退出游戏'],
+lang:['Language','ภาษา','语言'],vol:['Volume','ระดับเสียง','音量'],gfx:['Graphics','กราฟิก','画质'],low:['Low','ต่ำ','低'],mid:['Medium','กลาง','中'],high:['High','สูง','高'],back:['Back','กลับ','返回'],
+bye:['Thanks for playing!','ขอบคุณที่เล่น!','感谢游玩！'],lv:['Lv','เลเวล','等级'],debt:['Debt','หนี้','债务'],tens:['Line tension','ความตึงของสาย','鱼线张力'],prog:['Progress','ความคืบหน้า','进度'],
+bag:['Bag','กระเป๋า','背包'],bait:['Bait','เหยื่อ','鱼饵'],rod:['Rod Lv','เบ็ด Lv','鱼竿'],dur:['Durability','ความทนทาน','耐久'],
+t1:['Press B to open your bag','กด B เพื่อเปิดกระเป๋า','按 B 打开背包'],
+t2:['Press F to dig for bait','กด F เพื่อขุดหาเหยื่อ','按 F 挖鱼饵'],
+t3:['Walk to the pier (WASD, ←/→ turn camera) and left-click to cast','เดินไปท่าเรือ (WASD, ←/→ หมุนกล้อง) แล้วคลิกซ้ายเพื่อตีเบ็ด','走到码头 (WASD, ←/→ 转动镜头)，左键抛竿'],
+t4:['When "!" appears, click to hook. Hold click to reel – never let tension hit max!','เมื่อมี ! ให้คลิกซ้ายเกี่ยวปลา กดค้างเพื่อม้วนสาย ห้ามให้แถบความตึงเต็ม!','出现 ! 时点击上钩，按住左键收线，张力条不能满！'],
+t5:['At the hut: R repair, U upgrade rod, V sell fish, H pay debt','ที่กระท่อม: R ซ่อม, U อัปเกรดเบ็ด, V ขายปลา, H จ่ายหนี้','在小屋：R修理，U升级鱼竿，V卖鱼，H还债'],
+t6:['Goal: reach Lv 50 and repay ฿100,000. Catch the Blue Marlin!','เป้าหมาย: เลเวล 50 ใช้หนี้ ฿100,000 และจับบลูมารีลให้ได้!','目标：升到50级，还清10万泰铢，钓到蓝枪鱼！'],
+nowater:['Face the sea to cast','หันไปทางทะเลก่อนตีเบ็ด','请面向大海'],nobait:['No bait! Press F','ไม่มีเหยื่อ! กด F','没有鱼饵！按 F'],broke:['Rod broken! Repair at the hut','เบ็ดพัง! ไปซ่อมที่กระท่อม','鱼竿坏了！去小屋修理'],
+bite:['! Fish on – click!','! ปลากินเหยื่อ – คลิก!','! 鱼上钩 – 点击！'],esc:['The fish got away…','ปลาหลุดไป…','鱼跑了…'],got:['Caught','จับได้','钓到'],dig:['+3 bait','ได้เหยื่อ +3','鱼饵 +3'],
+nomoney:['Not enough money','เงินไม่พอ','钱不够'],ok:['Done!','เรียบร้อย!','完成！'],lvup:['Level up!','เลเวลอัป!','升级！'],
+base:['Level 50! You leave the sea and move to the island base. Repay ฿100,000! Boats for rent at the pier (Y)!','เลเวล 50! ย้ายจากทะเลมาที่ฐานบนเกาะ ใช้หนี้ ฿100,000 ให้หมด! มีเรือให้เช่าที่ท่าเรือ (Y)!','50级！离开大海，搬到岛上基地。还清10万泰铢！码头有船可租 (Y)！'],
+win:['Debt cleared! You are free, Dave!','ใช้หนี้หมดแล้ว! เดฟเป็นอิสระ!','债务还清！戴夫自由了！'],
+n0:['Old Sea: "Come back at Lv 50 and I will reward you."','ลุงทะเล: "ถึงเลเวล 50 เมื่อไร มาหาลุงนะ จะมีรางวัลให้"','老渔夫：“50级再来找我，有奖励。”'],
+n1:['Mali: "Blue Marlin is the hardest fish. Upgrade your rod first!" +฿','มะลิ: "บลูมารีลจับยากที่สุด อัปเกรดเบ็ดก่อนนะ!" +฿','玛丽：“蓝枪鱼最难钓，先升级鱼竿！” +฿'],
+n2:['Chef Bun: "Sell your fish to me anytime." +฿','เชฟบุญ: "มีปลามาขายได้ตลอด" +฿','阿邦厨师：“鱼随时卖给我。” +฿'],
+n3:['Captain Kai: "Big fish come in deep water." +฿','กัปตันไก: "ปลาใหญ่อยู่น้ำลึกนะ" +฿','凯船长：“大鱼在深水。” +฿'],
+rent1:['Press Y to rent a boat (฿20/hour): deep sea & Blue Marlin','กด Y เพื่อเช่าเรือ (฿20/ชั่วโมง) ตกปลาทะเลลึกและบลูมารีล','按 Y 租船（每小时฿20），深海钓蓝枪鱼'],rent2:['Boat: WASD sail, click to fish. Back at the pier press Y to return it','บนเรือ: WASD ขับเรือ คลิกซ้ายตกปลา กลับท่าเรือแล้วกด Y คืนเรือ','船上：WASD驾驶，左键钓鱼，回码头按 Y 还船'],rented:['Boat rented! ฿20 paid','เช่าเรือแล้ว! จ่าย ฿20','已租船！支付฿20'],rent3:['Return to the pier first','กลับไปที่ท่าเรือก่อน','请先回码头'],docked:['Boat returned','คืนเรือแล้ว','已还船'],rentpay:['Rent -฿20 (1 hour)','ค่าเช่า -฿20 (1 ชั่วโมง)','租金 -฿20（1小时）'],norent:['Out of money – boat returned','เงินหมด – คืนเรือ','钱不够，已还船'],
+fish:['Fish','ปลา','鱼'],empty:['(empty)','(ว่าง)','(空)']};
+const F=[
+{n:['Sardine','ปลาซาร์ดีน','沙丁鱼'],p:20,d:.5,l:1,w:10},{n:['Mackerel','ปลาทู','鲭鱼'],p:45,d:1,l:1,w:8},
+{n:['Squid','ปลาหมึก','鱿鱼'],p:110,d:1.6,l:5,w:6},{n:['Tuna','ปลาทูน่า','金枪鱼'],p:350,d:2.3,l:12,w:4},
+{n:['Swordfish','ปลาดาบ','剑鱼'],p:1800,d:3.2,l:25,w:2},{n:['Blue Marlin','บลูมารีล','蓝枪鱼'],p:60000,d:4.6,l:50,w:2,b:1}];
+let li=1;const T=k=>S[k][li];
+const $=i=>document.getElementById(i);
+// ---------- state
+let G={lv:1,xp:0,money:100,debt:100000,bait:0,rl:0,dur:60,inv:{},phase:'sea',talked:[0,0,0],step:0};
+let mode='title',vol=.6,cy=0,keys={},down=false,fs='idle',ft=0,tens=0,prog=0,jt=0,curF=null,digCd=0;
+const P={x:0,z:0,a:0};
+// ---------- three
+const R=new THREE.WebGLRenderer({antialias:true});document.body.prepend(R.domElement);R.shadowMap.enabled=true;
+const sc=new THREE.Scene();sc.background=new THREE.Color(0x8fd8ff);sc.fog=new THREE.Fog(0x8fd8ff,60,170);
+const cam=new THREE.PerspectiveCamera(55,1,.1,400);
+sc.add(new THREE.HemisphereLight(0xffffff,0x4a8f6a,.85));
+const sun=new THREE.DirectionalLight(0xfff2cc,.9);sun.position.set(30,50,20);sun.castShadow=true;sun.shadow.camera.left=-40;sun.shadow.camera.right=40;sun.shadow.camera.top=40;sun.shadow.camera.bottom=-40;sun.shadow.mapSize.set(1024,1024);sc.add(sun);
+function mk(g,c,o){const m=new THREE.Mesh(g,new THREE.MeshToonMaterial({color:c}));m.castShadow=true;m.receiveShadow=true;if(o!==0){const l=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x1a1a2e,side:THREE.BackSide}));l.scale.setScalar(1.05);m.add(l)}return m}
+function at(m,x,y,z,p){m.position.set(x,y,z);(p||sc).add(m);return m}
+const B=THREE.BoxGeometry,C=THREE.CylinderGeometry,Sp=THREE.SphereGeometry;
+const sea=at(new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshToonMaterial({color:0x27b6d8})),0,-.3,0);sea.rotation.x=-Math.PI/2;
+at(mk(new C(29,30,1.6,40),0xf2d79b,0),0,-.9,0);at(mk(new C(25,26,2,40),0x5cc45e,0),0,-1,0).receiveShadow=true;
+// pier
+at(mk(new B(3,.4,15)),0,.1,28.5);for(let z=22;z<36;z+=4){at(mk(new C(.2,.2,2)),-1.4,-.5,z);at(mk(new C(.2,.2,2)),1.4,-.5,z)}
+// hut (12,6)
+const hut=new THREE.Group();at(mk(new B(5,3,4),0xc98b52),0,1.5,0,hut);const rf=at(mk(new C(0,4.2,2.2,4),0xd94f3d),0,4,0,hut);rf.rotation.y=Math.PI/4;rf.scale.z=.9;at(mk(new B(1,1.9,.2),0x6b3b1f),0,.95,2.05,hut);at(mk(new B(1.2,.9,.2),0xbfe9ff),-1.6,1.8,2.05,hut);hut.position.set(12,0,6);sc.add(hut);
+// trees
+let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+function tree(x,z){const g=new THREE.Group();at(mk(new C(.4,.6,3.2),0x7a4a28),0,1.6,0,g);const s=1+rnd()*.5;[[0,4,0,2.2],[1,3.3,.6,1.6],[-1,3.4,-.5,1.7]].forEach(a=>at(mk(new THREE.IcosahedronGeometry(a[3]*s,1),0x2f9e4f),a[0],a[1]+.6,a[2],g));g.position.set(x,0,z);sc.add(g)}
+for(let n=0,k=0;n<18&&k<400;k++){const a=rnd()*6.283,r=5+rnd()*18,x=Math.cos(a)*r,z=Math.sin(a)*r;
+if(Math.hypot(x-12,z-6)<7||Math.hypot(x-14,z+7)<9||Math.hypot(x,z+21)<10||(Math.abs(x)<4&&z>6))continue;tree(x,z);n++}
+// cliff + waterfall
+at(mk(new B(16,14,8),0x8b8f99),0,7,-22);at(mk(new B(9,4,6),0x7d8190),0,16,-22);
+const wf=at(new THREE.Mesh(new THREE.PlaneGeometry(3,14),new THREE.MeshBasicMaterial({color:0xcff4ff,transparent:true,opacity:.8})),0,7.5,-17.9);
+const pool=at(new THREE.Mesh(new THREE.CircleGeometry(4,24),new THREE.MeshToonMaterial({color:0x4cc9f0})),0,.05,-16);pool.rotation.x=-Math.PI/2;
+// palm-ish plants / rocks
+for(let i=0;i<8;i++){const a=i*.8+.3,r=24;at(mk(new Sp(.7+rnd()*.5,6,5),0x9aa0ab),Math.cos(a)*r,.2,Math.sin(a)*r*(a>1.4&&a<1.9?.3:1))}
+// village + NPCs
+function house(x,z,c){const g=new THREE.Group();at(mk(new B(4,2.6,3.4),c),0,1.3,0,g);const r=at(mk(new C(0,3.3,1.8,4),0x3d7ea6),0,3.4,0,g);r.rotation.y=Math.PI/4;g.position.set(x,0,z);sc.add(g)}
+house(19,-8,0xf4d6a0);house(9,-14,0xe9b7a5);
+function person(sh,hat,skin){const g=new THREE.Group();at(mk(new C(.5,.55,1.1,10),sh),0,1.2,0,g);at(mk(new Sp(.42,12,10),skin||0xf1c27d),0,2.05,0,g);
+if(hat){at(mk(new C(1.15,1.15,.08,18),hat),0,2.4,0,g);at(mk(new Sp(.52,12,8,0,6.3,0,1.5),hat),0,2.4,0,g)}
+const l1=at(mk(new B(.3,.6,.35),0x264653),-.22,.3,0,g),l2=at(mk(new B(.3,.6,.35),0x264653),.22,.3,0,g);g.l=[l1,l2];sc.add(g);return g}
+const NP=[[14,-4,0xe76f51],[8,-9,0xf28ab2],[18,-12,0x9b72cf]].map((a,i)=>{const n=person(a[2],i==0?0xe9c46a:0,0xe0ac69);n.position.set(a[0],0,a[1]);return n});
+// hero (big hat, backpack, rod)
+const hero=person(0x2a9d8f,0xffd23f);hero.rotation.order='YXZ';
+const pack=new THREE.Group();pack.position.set(0,1.3,-.55);hero.add(pack);at(mk(new B(.8,1,.45),0xe76f51),0,0,0,pack);at(mk(new B(.5,.35,.1),0xc2543a),0,-.2,-.27,pack);
+const flap=new THREE.Group();flap.position.set(0,.5,.22);pack.add(flap);at(mk(new B(.84,.1,.5),0xd9624a),0,.03,-.25,flap);
+const itm=new THREE.Group();pack.add(itm);at(mk(new Sp(.17,8,6),0xffd166),-.18,.55,0,itm);at(mk(new Sp(.15,8,6),0x8ecae6),.15,.55,.05,itm);itm.visible=false;
+const rod=new THREE.Group();rod.position.set(.5,1.9,.9);rod.rotation.x=1.15;hero.add(rod);
+at(mk(new C(.03,.06,3.2,6),0x2b2d42,0),0,0,0,rod);at(mk(new C(.09,.09,.75,8),0x3a3a3a),0,-1.25,0,rod);
+[-.3,.5,1.1,1.55].forEach(y=>{at(mk(new THREE.TorusGeometry(.06,.012,5,10),0xcfd4da,0),0,y,-.07,rod).rotation.x=Math.PI/2});
+at(mk(new B(.1,.28,.25),0x333b4a),0,-.55,.2,rod);at(mk(new C(.2,.16,.16,14),0xc0c6cc),0,-.42,.38,rod);
+const rotor=new THREE.Group();rotor.position.set(0,-.58,.38);rod.add(rotor);at(mk(new C(.19,.19,.05,14),0xe63946),0,0,0,rotor);at(mk(new THREE.TorusGeometry(.22,.018,5,12,Math.PI),0xe5e8ec,0),0,.03,0,rotor).rotation.x=Math.PI/2;
+const crank=new THREE.Group();crank.position.set(.16,-.58,.3);rod.add(crank);at(mk(new B(.03,.3,.04),0xe5e8ec,0),0,.13,0,crank);at(mk(new Sp(.05,8,6),0x2a9d8f),0,.29,0,crank);
+const tip=new THREE.Object3D();tip.position.set(0,1.6,0);rod.add(tip);
+// boat for title
+const boat=new THREE.Group();at(mk(new B(3.2,1,7),0xb5651d),0,.1,0,boat);at(mk(new C(0,1.6,2,4),0xb5651d),0,.1,-4.2,boat).rotation.set(Math.PI/2,Math.PI/4,0);at(mk(new C(.1,.1,5)),0,3,.8,boat);at(mk(new B(.1,2.6,2.2),0xfff4d6),0,3.4,-.3,boat);
+sc.add(boat);
+// bobber + line
+const bob=new THREE.Group();at(mk(new Sp(.22,10,8),0xe63946),0,0,0,bob);at(mk(new Sp(.2,10,8,0,6.3,0,1.5),0xffffff),0,0,0,bob);sc.add(bob);bob.visible=false;
+const lg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);const line=new THREE.Line(lg,new THREE.LineBasicMaterial({color:0xffffff}));line.frustumCulled=false;sc.add(line);line.visible=false;
+// ---------- fish models
+let fish3=null,ht=0,pk=0,lid=0,bagOpen=false,rent=0,rt=0,lc=0,started=false,bz=85;
+function dock(){rent=0;if(fs!='idle'){fs='idle';bob.visible=false;line.visible=false;$('fight').hidden=true}P.x=0;P.z=27;boat.position.set(3.5,0,29);boat.rotation.y=0;msg(T('docked'))}
+const mm=$('mm'),mc=mm.getContext('2d');
+function drawMap(){const s=mm.width,k=s/110,X=x=>s/2+x*k,Z=z=>s/2+z*k;const dot=(x,z,r,c)=>{mc.fillStyle=c;mc.beginPath();mc.arc(X(x),Z(z),r*k,0,6.3);mc.fill()};
+mc.fillStyle='#27b6d8';mc.fillRect(0,0,s,s);dot(0,0,29,'#f2d79b');dot(0,0,25,'#5cc45e');mc.fillStyle='#8b8f99';mc.fillRect(X(-8),Z(-26),16*k,10*k);dot(0,-16,3.5,'#4cc9f0');
+mc.fillStyle='#b5651d';mc.fillRect(X(-1.5),Z(21),3*k,14*k);mc.fillStyle='#d94f3d';mc.fillRect(X(9.5),Z(4),5*k,4*k);mc.fillStyle='#3d7ea6';mc.fillRect(X(17),Z(-9.7),4*k,3.4*k);mc.fillRect(X(7),Z(-15.7),4*k,3.4*k);
+NP.forEach(n=>dot(n.position.x,n.position.z,1.2,'#ffd166'));if(G.lv>=50)dot(boat.position.x,boat.position.z,2,'#fff');if(bob.visible)dot(bob.position.x,bob.position.z,1,'#e63946');
+mc.save();mc.translate(X(P.x),Z(P.z));mc.rotate(Math.PI-P.a);mc.fillStyle='#ffd23f';mc.strokeStyle='#1a1a2e';mc.lineWidth=2;mc.beginPath();mc.moveTo(0,-9);mc.lineTo(6,7);mc.lineTo(-6,7);mc.closePath();mc.fill();mc.stroke();mc.restore()}const FC=[0xb0bec5,0x4f9db8,0xe9967a,0x5c7cfa,0x8aa0b8,0x1d4ed8],FS=[.55,.7,.8,1.1,1.4,2.2];
+function mkFish(c,s){const g=new THREE.Group();g.rotation.order='YXZ';at(mk(new Sp(.5,12,8),c),0,0,0,g).scale.set(.6,.7,1.5);
+const t=at(mk(new C(0,.45,.7,4),c),0,0,-1,g);t.rotation.x=Math.PI/2;t.scale.x=.25;at(mk(new C(0,.3,.5,4),0xffd166),0,.42,-.1,g).scale.x=.25;
+[-1,1].forEach(x=>{at(new THREE.Mesh(new Sp(.09,8,6),new THREE.MeshBasicMaterial({color:0xffffff})),x*.27,.12,.6,g);at(new THREE.Mesh(new Sp(.05,6,5),new THREE.MeshBasicMaterial({color:0x111111})),x*.33,.12,.65,g)});
+g.scale.setScalar(s);sc.add(g);return g}
+const JF=[];for(let i=0;i<7;i++){const f=mkFish(FC[i%6],FS[i%6]*1.3);f.visible=false;JF.push([f,i/7])}
+// ---------- audio
+let AC;function beep(f,d,t){if(!vol)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=t||'triangle';o.frequency.value=f;g.gain.value=.12*vol;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+// ---------- ui
+let mt=0;function msg(s,t){$('msg').textContent=s;mt=t||2.2}
+function tut(){const s=G.step;$('tut').hidden=!(mode=='play'&&s>=1&&s<=6);if(s>=1&&s<=6)$('tut').textContent=T('t'+s)}
+function adv(n){if(G.step==n){G.step++;tut();if(G.step==7)setTimeout(()=>$('tut').hidden=true,100)}}
+const need=()=>20+G.lv*8,fmax=()=>60+G.rl*30,upc=()=>200*(G.rl+1);
+function hud(){$('hud').innerHTML=`<b>${T('lv')} ${G.lv}</b> (${G.xp}/${need()})<br>฿ ${G.money.toLocaleString()}<br>${T('debt')}: ฿ ${G.debt.toLocaleString()}${rent?'<br>⛵ '+lc+'s → ฿20':''}`;
+let f=Object.keys(G.inv).map(i=>`${F[i].n[li]} ×${G.inv[i]}`).join('<br>')||T('empty');
+$('bag').innerHTML=`<b>${T('bag')} (B)</b><br>${T('bait')}: ${G.bait}<br>${T('rod')}: ${G.rl+1}<br>${T('dur')}: ${Math.ceil(G.dur)}/${fmax()}<hr>${f}`}
+function labels(){['start','newgame','cont','settings','quit','back'].forEach(k=>{const m={start:'bstart',newgame:'bnew',cont:'bcont',settings:'bset',quit:'bquit',back:'bback'};$(m[k]).textContent=T(k)});
+$('slang').textContent=T('lang');$('svol').textContent=T('vol');$('sgfx').textContent=T('gfx');const g=$('gfx'),v=g.value||'1';g.innerHTML=['low','mid','high'].map((k,i)=>`<option value="${i}">${T(k)}</option>`).join('');g.value=v;
+document.querySelectorAll('[data-l]').forEach(b=>b.classList.toggle('on',+b.dataset.l==(li==1?1:li==0?0:2)));hud();tut()}
+function setGfx(){const v=+$('gfx').value;R.setPixelRatio([.7,1,Math.min(devicePixelRatio,2)][v]);R.shadowMap.enabled=v>0;sun.castShadow=v>0;resize()}
+function resize(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);
+document.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{li=+b.dataset.l;labels()});
+$('vol').oninput=e=>vol=e.target.value/100;$('gfx').onchange=setGfx;
+let from='menu';
+function show(id){['title','menu','set'].forEach(i=>$(i).hidden=i!=id)}
+$('bstart').onclick=()=>{beep(600,.15);mode='menu';show('menu')};
+$('bset').onclick=()=>{from='menu';show('set')};$('bback').onclick=()=>show('menu');
+$('bquit').onclick=()=>{show('none');$('title').hidden=false;$('title').innerHTML=`<h1>${T('bye')}</h1>`;mode='quit'};
+$('bcont').onclick=()=>{show('none');mode='play';ui()};
+$('bnew').onclick=()=>{G={lv:1,xp:0,money:100,debt:100000,bait:0,rl:0,dur:60,inv:{},phase:'sea',talked:[0,0,0],step:1};started=true;bagOpen=false;$('bag').classList.remove('on');show('none');mode='intro';P.x=12;P.z=8.4;P.a=0;it=0;boat.position.set(3.5,0,29);boat.rotation.y=0;rent=0;$('bcont').disabled=false;ui();hud();msg(T('t1'),0)};
+function ui(){const p=mode=='play'||mode=='intro';$('hud').hidden=!p;$('mm').hidden=!p;$('tut').hidden=true;if(mode=='play')tut()}
+// ---------- input
+const kk=e=>/^Key[A-Z]$/.test(e.code)?e.code[3].toLowerCase():e.key.toLowerCase();
+addEventListener('keydown',e=>{const k=kk(e);keys[k]=1;if(mode=='play'||mode=='intro'){
+if(k=='escape'&&mode=='play'){mode='menu';show('menu');$('hud').hidden=true;$('tut').hidden=true;$('mm').hidden=true;return}
+if(mode!='play')return;
+if(k=='b'){bagOpen=!bagOpen;$('bag').classList.toggle('on',bagOpen);adv(1);beep(bagOpen?520:380,.12)}
+if(k=='m')$('mm').classList.toggle('big');
+if(k=='y'&&G.lv>=50&&fs=='idle'){const nd=Math.hypot(P.x-3.5,P.z-29)<9;if(!rent){if(!nd)return;if(G.money<20)return msg(T('nomoney'));G.money-=20;rent=1;rt=60;lc=60;P.x=3.5;P.z=29;P.a=0;msg(T('rented'));hud();beep(600,.2)}else{if(nd){dock();hud()}else msg(T('rent3'))}}
+if(k=='f'&&digCd<=0&&fs=='idle'&&!rent){G.bait+=3;digCd=1.2;msg(T('dig'),1.2);beep(300,.1);if(G.bait>=3)adv(2);hud()}
+const nh=Math.hypot(P.x-12,P.z-6)<6;
+if(nh){if(k=='r'){const c=Math.ceil((fmax()-G.dur)/2);if(G.dur>=fmax())return;if(G.money<c)return msg(T('nomoney'));G.money-=c;G.dur=fmax();msg(T('ok'));adv(5);beep(500,.2)}
+if(k=='u'){if(G.rl>=9)return;if(G.money<upc())return msg(T('nomoney')+' ฿'+upc());G.money-=upc();G.rl++;G.dur=fmax();msg(T('ok'));adv(5);beep(700,.25)}
+if(k=='v'){let s=0;for(const i in G.inv)s+=F[i].p*G.inv[i];G.inv={};G.money+=s;msg('+฿'+s);adv(5);beep(800,.2)}
+if(k=='h'){const p=Math.min(G.money,G.debt);G.money-=p;G.debt-=p;msg('-฿'+p);adv(5);if(G.debt<=0){G.debt=0;msg(T('win'),8)}beep(500,.3)}hud()}
+if(k=='t'){NP.forEach((n,i)=>{if(Math.hypot(P.x-n.position.x,P.z-n.position.z)<3.5){if(G.phase!='base')return msg(T('n0'),4);let r=0;if(!G.talked[i]){G.talked[i]=1;r=[3000,5000,8000][i];G.money+=r}msg(T('n'+(i+1))+r,4);hud()}})}}});
+addEventListener('keyup',e=>keys[kk(e)]=0);addEventListener('blur',()=>keys={});
+let drag=0,lx=0;
+R.domElement.addEventListener('pointerdown',e=>{if(e.button==2){drag=1;lx=e.clientX;return}down=true;click()});
+addEventListener('pointerup',()=>{down=false;drag=0});addEventListener('pointermove',e=>{if(drag){cy-=(e.clientX-lx)*.006;lx=e.clientX}});
+R.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+function click(){if(mode!='play')return;
+if(fs=='idle'){if(G.dur<=0)return msg(T('broke'));if(G.bait<1)return msg(T('nobait'));
+const fx=-Math.sin(cy),fz=-Math.cos(cy),tx=P.x+fx*9,tz=P.z+fz*9;
+const onWater=Math.hypot(tx,tz)>26.5&&!(Math.abs(tx)<1.6&&tz>20&&tz<35.5);if(!onWater)return msg(T('nowater'));
+G.bait--;bagOpen=false;$('bag').classList.remove('on');bob.position.set(tx,0,tz);bob.visible=true;line.visible=true;fs='wait';ft=2+rnd()*4;P.a=Math.atan2(fx,fz);adv(3);hud();beep(400,.15)}
+else if(fs=='wait'){fs='idle';bob.visible=false;line.visible=false}
+else if(fs=='bite'){let L=G.lv+(G.phase=='base'?5:0)+(rent?10:0),c=F.filter(f=>f.l<=L&&(!f.b||rent)),t=c.reduce((a,f)=>a+f.w,0),r=rnd()*t;curF=c.find(f=>(r-=f.w)<0)||c[0];fs='fight';tens=20;prog=15;jt=1;if(fish3)sc.remove(fish3);{const i=F.indexOf(curF);fish3=mkFish(FC[i],FS[i])}$('fight').hidden=false;$('ft').textContent=T('tens');$('fp').textContent=T('prog');msg('');beep(250,.2,'square')}}
+function endFight(ok){if(fish3){if(ok)ht=2.6;else{sc.remove(fish3);fish3=null}}$('fight').hidden=true;$('fight').style.outline='none';bob.visible=false;line.visible=false;fs='idle';G.dur=Math.max(0,G.dur-4-curF.d*3);
+if(ok){const i=F.indexOf(curF);G.inv[i]=(G.inv[i]||0)+1;G.xp+=Math.round(10+curF.d*12);msg(T('got')+' '+curF.n[li]+'!',2.5);adv(4);beep(900,.3);
+while(G.xp>=need()){G.xp-=need();G.lv++;msg(T('lvup')+' '+G.lv,2.5);beep(1100,.4);if(G.lv==50&&G.phase=='sea'){G.phase='base';P.x=14;P.z=-1.5;msg(T('base'),7)}}}
+else{msg(T('esc'));beep(150,.3,'sawtooth')}hud()}
+// ---------- loop
+let it=0,t0=performance.now(),bt=0;
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-t0)/1000,.05);t0=now;bt+=dt;
+sea.position.y=-.3+Math.sin(bt)*.08;wf.material.opacity=.7+Math.sin(bt*8)*.1;if(mt>0){mt-=dt;if(mt<=0)$('msg').textContent=''}if(digCd>0)digCd-=dt;
+NP.forEach((n,i)=>n.position.y=Math.abs(Math.sin(bt*2+i))*.08);
+JF.forEach(([f,ph])=>{const u=bt/3+ph,n=Math.floor(u),q=(u-n)/.4;if(q>=1){f.visible=false;return}const a=n*2.4+ph*20,r=31+((n*5.3+ph*17)%1)*14;f.visible=true;f.position.set(Math.cos(a)*r,Math.sin(q*Math.PI)*2.6-.4,Math.sin(a)*r);f.rotation.set(-Math.cos(q*Math.PI)*.9,-a,0)});
+if(fish3){if(fs=='fight'){const b=bob.position;fish3.position.set(b.x+Math.sin(bt*6)*.7,Math.abs(Math.sin(bt*5))*.6-.1,b.z+Math.cos(bt*5)*.7);fish3.rotation.set(Math.sin(bt*9)*.4,bt*5,Math.sin(bt*12)*.3)}else if(ht>0){ht-=dt;fish3.position.set(P.x,3.8+Math.sin(bt*3)*.15,P.z);fish3.rotation.set(0,bt*2,0);if(ht<=0){sc.remove(fish3);fish3=null}}}
+if(!started){bz=Math.max(29,bz-Math.min(7,(bz-29)*.5+.4)*dt);boat.position.set(3.5,Math.sin(bt*2)*.1,bz);hero.position.set(3.5,.6,bz);hero.rotation.set(0,0,0);hero.l.forEach(l=>l.visible=false);rod.visible=false;
+cam.position.set(12,4,bz+4);cam.lookAt(1,1.5,bz-5)}
+else{hero.l.forEach(l=>l.visible=true);rod.visible=true;let mv=0;
+if(keys.arrowleft)cy+=dt*1.8;if(keys.arrowright)cy-=dt*1.8;
+if(mode=='intro'){it+=dt;P.z=8.4+it*2.2;P.a=0;mv=1;if(it>2.2){mode='play';ui();msg('',0)}}
+else if(mode=='play'&&fs!='fight'||mode=='play'){const fx=-Math.sin(cy),fz=-Math.cos(cy),rx=-fz,rz=fx;
+let a=(keys.w?1:0)-(keys.s?1:0),b=(keys.d?1:0)-(keys.a?1:0);if(fs!='idle'||bagOpen){a=0;b=0}
+if(a||b){let dx=fx*a+rx*b,dz=fz*a+rz*b;const l=Math.hypot(dx,dz);dx/=l;dz/=l;let nx=P.x+dx*(rent?9:6)*dt,nz=P.z+dz*(rent?9:6)*dt;
+const pier=Math.abs(nx)<1.4&&nz>20&&nz<34.5;let r=Math.hypot(nx,nz);if(rent){if(r<28){nx*=28/r;nz*=28/r}if(r>95){nx*=95/r;nz*=95/r}if(Math.abs(nx)<3.2&&nz>20&&nz<36.5)nx=(P.x<0?-1:1)*3.2}else if(!pier&&r>24.3){nx*=24.3/r;nz*=24.3/r}
+if(!rent&&nz<-16.5&&Math.abs(nx)<8.5)nz=-16.5;const hd=Math.hypot(nx-12,nz-6);if(hd<3.4){nx=12+(nx-12)/hd*3.4;nz=6+(nz-6)/hd*3.4}
+P.x=nx;P.z=nz;P.a=Math.atan2(dx,dz);mv=1}
+if(fs!='idle'&&fs!='wait'||fs=='wait')P.a=Math.atan2(fx,fz)*(fs=='idle'?0:1)+(fs=='idle'?P.a:0);
+// fishing logic
+if(fs=='wait'){ft-=dt;bob.position.y=Math.sin(bt*3)*.06;if(ft<=0){fs='bite';ft=1.5;msg(T('bite'),1.5);beep(900,.15,'square')}}
+else if(fs=='bite'){ft-=dt;bob.position.y=-.15+Math.sin(bt*30)*.1;if(ft<=0){fs='idle';bob.visible=false;line.visible=false;msg(T('esc'))}}
+else if(fs=='fight'){const d=curF.d;bob.position.y=Math.sin(bt*20)*.08;jt-=dt;if(jt<=0){jt=.7+rnd()*.8;tens+=5+d*4*rnd()}
+if(down){tens+=(10+d*7)*dt;prog+=22*(1+.25*G.rl)/(1+.3*d)*dt}else{tens-=30*dt;prog-=d*2.5*dt}
+tens=Math.max(0,tens);prog=Math.max(0,prog);$('tb').style.height=Math.min(tens,100)+'%';$('pb').style.height=Math.min(prog,100)+'%';$('ft').textContent=T('tens')+' '+Math.min(100,Math.round(tens))+'%';$('fp').textContent=T('prog')+' '+Math.min(100,Math.round(prog))+'%';$('fight').style.outline=tens>80?'3px solid #e63946':'none';
+if(tens>=100)endFight(0);else if(prog>=100)endFight(1)}}
+hero.position.set(P.x,rent?.6:Math.abs(P.x)<1.4&&P.z>20&&P.z<34.5?.3:0,P.z);if(rent){boat.position.set(P.x,Math.sin(bt*2)*.08,P.z);boat.rotation.y=P.a+Math.PI}hero.rotation.y=P.a;
+if(!$('mm').hidden)drawMap();
+if(rent&&mode=='play'){rt-=dt;if(Math.ceil(rt)!=lc){lc=Math.ceil(rt);hud()}if(rt<=0){if(G.money>=20){G.money-=20;rt=60;lc=60;msg(T('rentpay'))}else{dock();msg(T('norent'),4)}hud()}}
+if(mode=='play'&&G.step>=6){const nd=Math.hypot(P.x-3.5,P.z-29)<8;if(G.lv>=50&&(nd||rent)){$('tut').hidden=false;$('tut').textContent=rent?T('rent2'):T('rent1')}else tut()}
+{pk+=((bagOpen?1:0)-pk)*Math.min(1,dt*6);lid+=((bagOpen&&pk>.85?1:0)-lid)*Math.min(1,dt*8);const e=pk;pack.position.set(.9*e,1.3-.8*e+Math.sin(e*Math.PI)*.7,-.55+1.55*e);pack.rotation.y=-.5*e;flap.rotation.x=lid*1.9;itm.visible=lid>.3;hero.rotation.x=Math.sin(e*Math.PI)*.4}
+if(fs=='fight'&&down){crank.rotation.x+=dt*16;rotor.rotation.y+=dt*16}const w=mv?Math.sin(bt*12)*.5:0;hero.l[0].rotation.x=w;hero.l[1].rotation.x=-w;
+if(bob.visible){const v=new THREE.Vector3();tip.getWorldPosition(v);const p=lg.attributes.position;p.setXYZ(0,v.x,v.y,v.z);p.setXYZ(1,bob.position.x,bob.position.y,bob.position.z);p.needsUpdate=true}
+const tx=P.x+Math.sin(cy)*9,tz=P.z+Math.cos(cy)*9;cam.position.lerp(new THREE.Vector3(tx,9.5,tz),.12);cam.lookAt(P.x,.5,P.z);
+const nh=Math.hypot(P.x-12,P.z-6)<6;if(G.step==7&&nh){}}
+R.render(sc,cam)}
+labels();setGfx();$('gfx').value=1;setGfx();requestAnimationFrame(frame);
+</script></body></html>
