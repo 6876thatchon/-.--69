@@ -65,6 +65,24 @@ const $=i=>document.getElementById(i);
 let G={lv:1,xp:0,money:100,debt:100000,bait:0,rl:0,dur:60,inv:{},phase:'sea',talked:[0,0,0],step:0};
 let mode='title',vol=.6,cy=Math.PI/4,cyT=Math.PI/4,keys={},down=false,fs='idle',ft=0,tens=0,prog=0,jt=0,curF=null,digCd=0;
 const P={x:0,z:0,a:0};
+// ---------- cloud save (Supabase)
+const SB_URL='https://nauuqeljpijyersxopnp.supabase.co';
+const SB_KEY='sb_publishable_8mdvfZRyMMi18ypfN2Anrg_Dx2-b9aq';
+const K_ID='dave_player_id',K_SEC='dave_player_secret';
+const hex=n=>[...crypto.getRandomValues(new Uint8Array(n))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const newId=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c=='x'?r:(r&3|8)).toString(16)});
+let SB_ID=localStorage.getItem(K_ID),SB_SEC=localStorage.getItem(K_SEC);
+if(!SB_ID){SB_ID=newId();localStorage.setItem(K_ID,SB_ID)}
+if(!SB_SEC){SB_SEC=hex(16);localStorage.setItem(K_SEC,SB_SEC)}
+let saving=false,lastSave=0,saveMsg='',cloudSave=null,lastAuto=0;
+function snap(){return {v:1,G,zone,pos:{x:+P.x.toFixed(2),z:+P.z.toFixed(2),a:+P.a.toFixed(3)},li,vol,trk}}
+async function sbRpc(fn,body){const r=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.text()).slice(0,160));return r.json()}
+async function saveGame(){if(!started||saving)return;saving=true;saveMsg='☁ …';hud();
+ try{await sbRpc('dave_save',{p_id:SB_ID,p_secret:SB_SEC,p_state:snap()});lastSave=Date.now();saveMsg='☁ '+new Date(lastSave).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+ catch(e){console.warn('[save]',e);saveMsg='☁ !'}
+ finally{saving=false;hud()}}
+async function loadGame(){try{return await sbRpc('dave_load',{p_id:SB_ID,p_secret:SB_SEC})}catch(e){console.warn('[load]',e);return null}}
+function beaconSave(){if(!started)return;try{navigator.sendBeacon(SB_URL+'/rest/v1/rpc/dave_save?apikey='+encodeURIComponent(SB_KEY),new Blob([JSON.stringify({p_id:SB_ID,p_secret:SB_SEC,p_state:snap()})],{type:'application/json'}))}catch(e){}}
 // ---------- three
 const R=new THREE.WebGLRenderer({antialias:true});document.body.prepend(R.domElement);R.shadowMap.enabled=true;
 const sc=new THREE.Scene();sc.background=new THREE.Color(0x8fd8ff);sc.fog=new THREE.Fog(0x8fd8ff,60,170);
@@ -220,7 +238,7 @@ let mt=0;function msg(s,t){$('msg').textContent=s;mt=t||2.2}
 function tut(){const s=G.step;$('tut').hidden=!(mode=='play'&&s>=1&&s<=6);if(s>=1&&s<=6)$('tut').textContent=T('t'+s)}
 function adv(n){if(G.step==n){G.step++;tut();if(G.step==7)setTimeout(()=>$('tut').hidden=true,100)}}
 const need=()=>20+G.lv*8,fmax=()=>60+G.rl*30,upc=()=>200*(G.rl+1);
-function hud(){$('hud').innerHTML=`<b>${T('lv')} ${G.lv}</b> (${G.xp}/${need()})<br>฿ ${G.money.toLocaleString()}<br>${T('debt')}: ฿ ${G.debt.toLocaleString()}${rent?'<br>⛵ '+lc+'s → ฿20':''}`;
+function hud(){$('hud').innerHTML=`<b>${T('lv')} ${G.lv}</b> (${G.xp}/${need()})<br>฿ ${G.money.toLocaleString()}<br>${T('debt')}: ฿ ${G.debt.toLocaleString()}${rent?'<br>⛵ '+lc+'s → ฿20':''}${saveMsg?'<br><span style="opacity:.6;font-size:12px">'+saveMsg+'</span>':''}`;
 let f=Object.keys(G.inv).map(i=>`${F[i].n[li]} ×${G.inv[i]}`).join('<br>')||T('empty');
 $('bag').innerHTML=`<b>${T('bag')} (B)</b><br>${T('bait')}: ${G.bait}<br>${T('rod')}: ${G.rl+1}<br>${sl[1][li]}: ${(G.ln|0)+1} · ${sl[2][li]}: ${(G.rv|0)+1}<br>${T('dur')}: ${Math.ceil(G.dur)}/${fmax()}<hr>${f}`}
 function labels(){['start','newgame','cont','settings','quit','back'].forEach(k=>{const m={start:'bstart',newgame:'bnew',cont:'bcont',settings:'bset',quit:'bquit',back:'bback'};$(m[k]).textContent=T(k)});
@@ -236,7 +254,13 @@ function show(id){['title','menu','set'].forEach(i=>$(i).hidden=i!=id)}
 $('bstart').onclick=()=>{beep(600,.15);mode='menu';show('menu')};
 $('bset').onclick=()=>{from='menu';show('set')};$('bback').onclick=()=>show('menu');
 $('bquit').onclick=()=>{show('none');$('title').hidden=false;$('title').innerHTML=`<h1>${T('bye')}</h1>`;mode='quit'};
-$('bcont').onclick=()=>{show('none');mode='play';ui()};
+$('bcont').onclick=async()=>{const s=cloudSave||await loadGame();
+ if(s&&s.G){G=s.G;zone=s.zone|0;li=(s.li|0)||1;if(typeof s.vol=='number'){vol=s.vol;$('vol').value=Math.round(vol*100)}
+  if(s.pos){P.x=s.pos.x;P.z=s.pos.z;P.a=s.pos.a;cy=cyT=P.a}
+  if(s.trk)trk=s.trk|0;started=true;rent=0;rt=0;fs='idle';bagOpen=false;$('bag').classList.remove('on');fish3=null;ht=0;
+  CF.set(P.x,0,P.z);hero.position.set(P.x,0,P.z);hero.rotation.y=P.a;lastSave=Date.now();saveMsg='☁ '+new Date(lastSave).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  show('none');mode='play';labels();ui();hud();beep(600,.15)}
+ else{show('none');mode='play';ui()}};
 $('bnew').onclick=()=>{zone=0;G={lv:1,xp:0,money:100,debt:100000,bait:0,rl:0,dur:60,inv:{},phase:'sea',talked:[0,0,0],step:1};started=true;bagOpen=false;$('bag').classList.remove('on');show('none');mode='intro';P.x=12;P.z=8.4;P.a=0;it=0;boat.position.set(3.5,0,45);boat.rotation.y=0;rent=0;$('bcont').disabled=false;ui();hud();msg(T('t1'),0)};
 function ui(){const p=mode=='play'||mode=='intro';$('hud').hidden=!p;$('mm').hidden=!p;$('tut').hidden=true;if(mode=='play')tut()}
 // ---------- input
@@ -273,6 +297,7 @@ else{msg(T('esc'));beep(150,.3,'sawtooth')}hud()}
 let it=0,t0=performance.now(),bt=0;
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-t0)/1000,.05);t0=now;bt+=dt;
 sea.position.y=-.3+Math.sin(bt)*.08;{const p=sea.geometry.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,WV(p.getX(i),-p.getY(i),bt));p.needsUpdate=true;if((fc++&3)==0)sea.geometry.computeVertexNormals()}wf.material.opacity=.7+Math.sin(bt*8)*.1;if(mt>0){mt-=dt;if(mt<=0)$('msg').textContent=''}if(digCd>0)digCd-=dt;
+if(started&&mode=='play'&&bt-lastAuto>15){lastAuto=bt;saveGame()}
 NP.forEach((n,i)=>n.position.y=Math.abs(Math.sin(bt*2+i))*.08);
 JF.forEach(([f,ph])=>{const u=bt/3+ph,n=Math.floor(u),q=(u-n)/.4;if(q>=1){f.visible=false;return}const a=n*2.4+ph*20,r=47+((n*5.3+ph*17)%1)*14;f.visible=true;f.position.set(Math.cos(a)*r,Math.sin(q*Math.PI)*2.6-.4,Math.sin(a)*r);f.rotation.set(-Math.cos(q*Math.PI)*.9,-a,0)});
 if(fish3){if(fs=='fight'){const b=bob.position;fish3.position.set(b.x+Math.sin(bt*6)*.7,Math.abs(Math.sin(bt*5))*.6-.1,b.z+Math.cos(bt*5)*.7);fish3.rotation.set(Math.sin(bt*9)*.4,bt*5,Math.sin(bt*12)*.3)}else if(ht>0){ht-=dt;fish3.position.set(P.x,3.8+Math.sin(bt*3)*.15,P.z);fish3.rotation.set(0,bt*2,0);if(ht<=0){sc.remove(fish3);fish3=null}}}
@@ -306,4 +331,6 @@ CF.lerp(hv.set(P.x,hero.position.y+.5,P.z),.15);setCam();sun.position.set(CF.x+3
 const nh=Math.hypot(P.x-12,P.z-6)<6;{const sb=$('sell'),hn=!zone&&Math.hypot(P.x-12,P.z-6)<6.5;sb.hidden=!(mode=='play'&&!rent&&(hn||nearShop()));if(!sb.hidden){let t=0;for(const i in G.inv)t+=F[i].p*G.inv[i];sb.textContent=T('sellb')+' ฿'+t.toLocaleString();sb.disabled=!t}}if(mode=='play'&&nearShop()){const c=lc2();$('tut').hidden=false;$('tut').textContent=`🛒 [1] ${sl[0][li]} ฿40 · [2] ${sl[1][li]} ${(G.ln|0)>=5?'MAX':'฿'+c[0]} · [3] ${sl[2][li]} ${(G.rv|0)>=5?'MAX':'฿'+c[1]}`}{const g=GT[zone];if(Math.hypot(P.x-g[0],P.z-g[1])<4.5&&mode=='play'&&!rent){if(!gn){gn=1;msg(T('gate'),2.5)}}else gn=0;if(!zone&&!G.sm2&&MH(P.x,P.z)>MP-1){G.sm2=1;G.money+=500;msg(T('summit').replace('800','500'),4);hud();beep(1200,.5)}if(zone&&!G.sm&&hero.position.y>PK-1.2){G.sm=1;G.money+=800;msg(T('summit'),4);hud();beep(1200,.5)}}}
 R.render(sc,cam)}
 labels();setGfx();$('gfx').value=1;setGfx();requestAnimationFrame(frame);
+loadGame().then(s=>{cloudSave=s;if(s&&s.G)$('bcont').disabled=false});
+addEventListener('pagehide',beaconSave);document.addEventListener('visibilitychange',()=>{if(document.hidden)beaconSave()});
 </script></body></html>
